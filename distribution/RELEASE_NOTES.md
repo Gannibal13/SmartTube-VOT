@@ -1,6 +1,6 @@
-# SmartTube Russian Voice Over · 32.68-vot.1
+# SmartTube Russian Voice Over · 32.72-vot.1
 
-SmartTube 32.68 Stable со встроенной русской озвучкой Яндекса.
+SmartTube 32.72 Stable со встроенной русской озвучкой Яндекса.
 Нативный протокол обновлён по VOT 1.12.3 / vot.js 3.2.0,
 компонент Яндекса 26.10.0.1796.
 
@@ -13,7 +13,7 @@ SmartTube 32.68 Stable со встроенной русской озвучкой
 
 Для большинства устройств выбирайте `universal.apk`; для 32-битных телевизоров —
 `armeabi-v7a.apk`, для 64-битных ARM — `arm64-v8a.apk`.
-Пакет: `org.smarttube.stable`, versionCode: `2459`.
+Пакет: `org.smarttube.stable`, versionCode: `2462`.
 При совпадении подписей APK устанавливается поверх предыдущей VOT-сборки.
 
 ## Как пользоваться
