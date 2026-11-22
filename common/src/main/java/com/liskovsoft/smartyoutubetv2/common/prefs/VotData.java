@@ -15,7 +15,7 @@ public class VotData extends SharedPreferencesBase {
     private static final String AUTO_TRANSLATE = "auto_translate_enabled";
     private static final String PREFER_YOUTUBE_AUTO_DUB = "prefer_youtube_auto_dub";
     private static final String COMMENT_TRANSLATE = "comment_translate_enabled";
-    private static final int DEFAULT_ORIGINAL_VOLUME_PERCENT = 15;
+    private static final int DEFAULT_ORIGINAL_VOLUME_PERCENT = 5;
     private static final int DEFAULT_TRANSLATION_VOLUME_PERCENT = 100;
     public static final int MAX_TRANSLATION_VOLUME_PERCENT = 150;
 

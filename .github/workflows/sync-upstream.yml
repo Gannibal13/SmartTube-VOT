@@ -1,0 +1,76 @@
+name: Sync upstream SmartTube
+
+# Daily: when yuliskov/SmartTube publishes a new Stable tag (e.g. 32.81s), merge it,
+# build + test + sign a release, then move the vot branch forward.
+# Conflicts in anything except README.md fail the run (GitHub emails the repo owner).
+
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      new: ${{ steps.merge.outputs.new }}
+      tag: ${{ steps.merge.outputs.tag }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: vot
+          fetch-depth: 0
+      - name: Merge latest upstream Stable tag
+        id: merge
+        run: |
+          git config user.name "smarttube-vot-bot"
+          git config user.email "smarttube-vot-bot@users.noreply.github.com"
+          git remote add upstream https://github.com/yuliskov/SmartTube.git
+          git fetch upstream --tags --force --quiet
+          TAG=$(git tag -l | grep -E '^[0-9]+\.[0-9]+s$' | sort -V | tail -1)
+          echo "latest upstream stable tag: $TAG"
+          if git merge-base --is-ancestor "$TAG" HEAD; then
+            echo "already merged"
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git checkout -b "sync/$TAG"
+          if ! git merge --no-edit "$TAG"; then
+            # README.md is ours (VOT description)
+            git checkout --ours README.md 2>/dev/null && git add README.md || true
+            if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+              echo "::error::Merge conflicts need manual resolution:"
+              git diff --name-only --diff-filter=U
+              exit 1
+            fi
+            git commit --no-edit
+          fi
+          git push origin "sync/$TAG"
+          echo "new=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: sync
+    if: needs.sync.outputs.new == 'true'
+    uses: ./.github/workflows/release.yml
+    with:
+      ref: sync/${{ needs.sync.outputs.tag }}
+    secrets: inherit
+
+  promote:
+    needs: [sync, release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: vot
+          fetch-depth: 0
+      - name: Move vot forward
+        run: |
+          git fetch origin "sync/${{ needs.sync.outputs.tag }}"
+          git merge --ff-only "origin/sync/${{ needs.sync.outputs.tag }}"
+          git push origin vot
+          git push origin --delete "sync/${{ needs.sync.outputs.tag }}"

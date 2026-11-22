@@ -14,6 +14,22 @@ public final class VotConfig {
     public static final String RESPONSE_LANG = "ru";
     public static final String FAKE_AUDIO_FILE_ID = "web_api_get_all_generating_urls_data_from_iframe";
 
+    // Source languages Yandex video translation accepts (vot.js availableLangs)
+    private static final String[] SOURCE_LANGS = {"en", "zh", "ko", "ar", "fr", "it", "es", "de", "ja"};
+
+    public static boolean isSupportedSourceLang(String langCode) {
+        if (langCode == null) {
+            return true;
+        }
+        String base = langCode.toLowerCase(java.util.Locale.ROOT).split("[-_]", 2)[0];
+        for (String lang : SOURCE_LANGS) {
+            if (lang.equals(base)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private VotConfig() {
     }
 }

@@ -1,0 +1,113 @@
+name: Release SmartTube VOT
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to build and release
+        default: vot
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: vot
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: recursive
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Set up Android SDK tools
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+        with:
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
+      - name: Prepare Android SDK
+        run: |
+          sdkmanager 'platforms;android-34' 'build-tools;30.0.3'
+          printf 'sdk.dir=%s\n' "${ANDROID_SDK_ROOT:-$ANDROID_HOME}" > local.properties
+      - name: Decide version
+        id: ver
+        run: |
+          UP=$(grep -m1 -oP 'versionName "\K[^"]+' smarttubetv/build.gradle)
+          EXISTING=$(gh release list --limit 200 --json tagName --jq "[.[] | select(.tagName | startswith(\"v${UP}-vot.\"))] | length")
+          N=$((EXISTING + 1))
+          echo "up=$UP" >> "$GITHUB_OUTPUT"
+          echo "build=$N" >> "$GITHUB_OUTPUT"
+          echo "name=${UP}-vot.${N}" >> "$GITHUB_OUTPUT"
+      - name: Set up release signing
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          test -n "$KEYSTORE_B64" || { echo "::error::KEYSTORE_B64 secret is missing"; exit 1; }
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+      - name: Build, test and sign
+        run: >-
+          bash gradlew --no-daemon --max-workers=2
+          -PvotBuild=${{ steps.ver.outputs.build }}
+          :smarttubetv:assembleStvotRelease
+          :common:testStstableDebugUnitTest
+          --tests 'com.liskovsoft.smartyoutubetv2.common.vot.*'
+      - name: Collect release files
+        run: |
+          VER='${{ steps.ver.outputs.name }}'
+          mkdir -p out
+          cp smarttubetv/build/outputs/apk/stvot/release/*.apk out/
+          ls out | grep -q . || { echo "::error::no APK built"; exit 1; }
+          python3 - "$VER" "${{ github.repository }}" <<'PY'
+          import json, os, re, subprocess, sys
+          ver, repo = sys.argv[1], sys.argv[2]
+          code = None
+          gradle = open("smarttubetv/build.gradle", encoding="utf-8").read()
+          up_code = int(re.search(r"versionCode (\d+)", gradle).group(1))
+          build = int(ver.rsplit(".", 1)[1])
+          code = up_code * 100 + build
+          base = f"https://github.com/{repo}/releases/download/v{ver}/"
+          def apk(arch):
+              return base + f"SmartTube_vot_{ver}_{arch}.apk"
+          manifest = {
+              "package": {
+                  "downloadUrl": apk("universal"),
+                  "downloadUrlList_armeabi-v7a": [apk("armeabi-v7a")],
+                  "downloadUrlList_arm64-v8a": [apk("arm64-v8a")],
+                  "downloadUrlList_x86": [apk("x86")],
+              },
+              ver: {
+                  "versionCode": code,
+                  "changelog": [f"SmartTube {ver.split('-')[0]} with built-in Russian Yandex voice-over"],
+                  "changelog_ru": [f"SmartTube {ver.split('-')[0]} со встроенной русской озвучкой Яндекса"],
+              },
+          }
+          json.dump(manifest, open("out/smarttube-vot.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+          PY
+          (cd out && sha256sum *.apk smarttube-vot.json > SHA256SUMS)
+          cat out/SHA256SUMS
+      - name: Publish release
+        run: |
+          VER='${{ steps.ver.outputs.name }}'
+          gh release create "v${VER}" out/* \
+            --target "$(git rev-parse HEAD)" \
+            --title "SmartTube ${VER}" \
+            --notes "SmartTube ${{ steps.ver.outputs.up }} (upstream Stable) with built-in Yandex voice-over. Signed with the project key; the in-app updater reads smarttube-vot.json from the latest release."

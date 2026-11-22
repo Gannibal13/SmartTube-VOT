@@ -53,6 +53,7 @@ public class VoiceTranslateController extends BasePlayerController {
     private int mState = STATE_OFF;
     private int mPendingEtaSec;
     private boolean mPendingToastShown;
+    private int mLastEtaMin;
     private String mPendingVideoUrl;
     private String mCurrentVideoId;
     private int mAutoTranslateRetryCount;
@@ -101,6 +102,7 @@ public class VoiceTranslateController extends BasePlayerController {
         restoreMainVolume();
         restoreSavedAudioFormat();
         mPendingToastShown = false;
+        mLastEtaMin = 0;
         mPendingVideoUrl = null;
         mCurrentVideoId = item != null ? item.videoId : null;
 
@@ -285,6 +287,12 @@ public class VoiceTranslateController extends BasePlayerController {
             return;
         }
 
+        // Auto mode must not upload minutes of audio for a language Yandex can't translate
+        if (!mUserArmed && !com.liskovsoft.smartyoutubetv2.common.vot.VotConfig.isSupportedSourceLang(info.langCode)) {
+            Log.d(TAG, "auto skipped (language not supported by Yandex) video=%s lang=%s", videoId, info.langCode);
+            return;
+        }
+
         List<FormatItem> formats = getAudioFormats();
         if (VotAudioTrackHelper.shouldAutoStartLikeManual(info, formats)) {
             if (!mArmed || (mState == STATE_OFF && mTranslationDisposable == null)) {
@@ -348,6 +356,7 @@ public class VoiceTranslateController extends BasePlayerController {
 
         cancelTranslationJob();
         mPendingToastShown = false;
+        mLastEtaMin = 0;
         mPendingVideoUrl = videoUrl;
         setState(STATE_PENDING);
 
@@ -425,17 +434,22 @@ public class VoiceTranslateController extends BasePlayerController {
             case VotProgress.TYPE_WAITING:
                 mPendingEtaSec = progress.remainingTimeSec;
                 setState(STATE_PENDING);
-                if (!mPendingToastShown) {
-                    mPendingToastShown = true;
-                    if (progress.status == com.liskovsoft.smartyoutubetv2.common.vot.VotTranslationResponse.STATUS_AUDIO_REQUESTED) {
+                if (progress.status == com.liskovsoft.smartyoutubetv2.common.vot.VotTranslationResponse.STATUS_AUDIO_REQUESTED) {
+                    if (!mPendingToastShown) {
+                        mPendingToastShown = true;
                         MessageHelpers.showMessage(getContext(), R.string.vot_uploading_audio);
-                    } else if (progress.remainingTimeSec > 0) {
-                        int min = Math.max(1, (progress.remainingTimeSec + 59) / 60);
+                    }
+                } else if (progress.remainingTimeSec > 0) {
+                    // Show the remaining time again whenever the minute count changes
+                    int min = Math.max(1, (progress.remainingTimeSec + 59) / 60);
+                    if (min != mLastEtaMin) {
+                        mLastEtaMin = min;
                         MessageHelpers.showMessage(getContext(),
                                 getContext().getString(R.string.vot_pending_eta, min));
-                    } else {
-                        MessageHelpers.showMessage(getContext(), R.string.vot_pending_long);
                     }
+                } else if (!mPendingToastShown) {
+                    mPendingToastShown = true;
+                    MessageHelpers.showMessage(getContext(), R.string.vot_pending_long);
                 }
                 break;
             case VotProgress.TYPE_READY:

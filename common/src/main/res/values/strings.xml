@@ -801,7 +801,7 @@
         <item quantity="one">%s second</item>
         <item quantity="other">%s seconds</item>
     </plurals>
-    <string name="vot_uploading_audio">Loading audio to prepare translation…</string>
+    <string name="vot_uploading_audio">Loading audio for translation… This may take several minutes; the video plays without translation meanwhile.</string>
     <string name="vot_youtube_auth_required">Sign in to YouTube in SmartTube to load this video’s audio.</string>
     <string name="vot_comment_translate">Translate comments (RU)</string>
     <string name="vot_comment_translate_desc">Automatically translate foreign YouTube comments to Russian using Google Translate</string>

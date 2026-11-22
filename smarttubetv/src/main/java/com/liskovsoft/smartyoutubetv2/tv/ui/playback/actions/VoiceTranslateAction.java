@@ -28,6 +28,11 @@ public class VoiceTranslateAction extends MultiAction {
         int highlightColor = ActionHelpers.getIconHighlightColor(context);
         BitmapDrawable offDrawable = ActionHelpers.getBitmapDrawable(context, R.drawable.action_voice_translate);
         BitmapDrawable pendingDrawable = ActionHelpers.getBitmapDrawable(context, R.drawable.action_voice_translate_pending);
+        // Highlight the pending state too, so it is clear that the button is pressed
+        if (pendingDrawable != null) {
+            pendingDrawable = new BitmapDrawable(context.getResources(),
+                    ActionHelpers.createBitmap(pendingDrawable.getBitmap(), highlightColor));
+        }
         BitmapDrawable onDrawable = offDrawable == null ? null
                 : new BitmapDrawable(context.getResources(),
                 ActionHelpers.createBitmap(offDrawable.getBitmap(), highlightColor));

@@ -57,8 +57,8 @@ android {
         applicationId "app.smarttube"
         minSdkVersion project.properties.minSdkVersion
         targetSdkVersion project.properties.targetSdkVersion
-        versionCode 247001
-        versionName "32.80-vot.1"
+        versionCode 2470
+        versionName "32.80"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField "long", "TIMESTAMP", System.currentTimeMillis() + "L"
 
@@ -171,6 +171,10 @@ android {
             applicationId "org.smarttube.stable"
             targetSdkVersion project.properties.compileSdkVersion
             matchingFallbacks = ['ststable']
+            // Upstream version lines stay untouched (clean merges). VOT build number is passed by CI: -PvotBuild=N
+            def votBuild = (project.findProperty('votBuild') ?: '1').toInteger()
+            versionCode android.defaultConfig.versionCode * 100 + votBuild
+            versionName android.defaultConfig.versionName + "-vot." + votBuild
         }
         stfdroid {
             applicationId "app.smarttube.fdroid"

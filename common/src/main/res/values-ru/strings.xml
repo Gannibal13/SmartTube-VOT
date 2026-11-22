@@ -808,7 +808,7 @@
         <item quantity="many">%s секунд</item>
         <item quantity="other">%s секунды</item>
     </plurals>
-    <string name="vot_uploading_audio">Загружаем аудио для подготовки перевода…</string>
+    <string name="vot_uploading_audio">Загружаем аудио для перевода… Это может занять несколько минут, видео пока играет без перевода.</string>
     <string name="vot_youtube_auth_required">Войдите в YouTube в SmartTube, чтобы загрузить аудио этого видео.</string>
     <string name="vot_comment_translate">Перевод комментариев (RU)</string>
     <string name="vot_comment_translate_desc">Автоматически переводить иностранные комментарии на русский язык</string>
