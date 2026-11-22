@@ -25,7 +25,8 @@ import java.util.concurrent.TimeUnit;
 
 public class VotClient {
     private static final String TAG = VotClient.class.getSimpleName();
-    private static final int MAX_POLL_ATTEMPTS = 60;
+    private static final int MAX_POLL_ATTEMPTS = 180;
+    private static final int MAX_POLL_WAIT_SEC = 20;
 
     private final Context mContext;
     private volatile boolean mCancelled;
@@ -104,7 +105,7 @@ public class VotClient {
                 return;
             }
 
-            int waitSec = Math.max(3, response.remainingTimeSec > 0 ? response.remainingTimeSec : 5);
+            int waitSec = pollWaitSec(response.remainingTimeSec, 5);
             for (int i = 0; i < MAX_POLL_ATTEMPTS && !emitter.isDisposed(); i++) {
                 Log.d(TAG, "poll attempt=%s wait=%ss", i, waitSec);
                 sleep(waitSec);
@@ -121,7 +122,7 @@ public class VotClient {
                         allowAudioFallback, useLivelyVoice, allowLivelyFallback, response)) {
                     return;
                 }
-                waitSec = Math.max(3, response.remainingTimeSec > 0 ? response.remainingTimeSec : waitSec);
+                waitSec = pollWaitSec(response.remainingTimeSec, waitSec);
             }
             if (!emitter.isDisposed()) {
                 emitter.onNext(VotProgress.failed("Translation timeout"));
@@ -351,6 +352,12 @@ public class VotClient {
         decoded.uuid = uuid;
         decoded.createdAtMs = System.currentTimeMillis();
         mSession = decoded;
+    }
+
+    /** Poll often: Yandex's remaining-time estimate can be far longer than the real wait. */
+    private static int pollWaitSec(int remainingTimeSec, int fallbackSec) {
+        int sec = remainingTimeSec > 0 ? remainingTimeSec : fallbackSec;
+        return Math.min(MAX_POLL_WAIT_SEC, Math.max(3, sec));
     }
 
     private void sleep(int sec) throws VotException {
