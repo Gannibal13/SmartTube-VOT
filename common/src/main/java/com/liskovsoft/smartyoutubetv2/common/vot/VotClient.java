@@ -106,6 +106,7 @@ public class VotClient {
 
             int waitSec = Math.max(3, response.remainingTimeSec > 0 ? response.remainingTimeSec : 5);
             for (int i = 0; i < MAX_POLL_ATTEMPTS && !emitter.isDisposed(); i++) {
+                Log.d(TAG, "poll attempt=%s wait=%ss", i, waitSec);
                 sleep(waitSec);
                 if (emitter.isDisposed()) {
                     return;
@@ -147,6 +148,10 @@ public class VotClient {
         if (emitter.isDisposed()) {
             return false;
         }
+
+        Log.d(TAG, "Yandex response: status=%s remainingSec=%s hasUrl=%s lively=%s translationId=%s message=%s",
+                response.status, response.remainingTimeSec, response.url != null && !response.url.isEmpty(),
+                response.isLivelyVoice, response.translationId, response.message);
 
         if (response.status == VotTranslationResponse.STATUS_SESSION_REQUIRED) {
             emitter.onNext(VotProgress.failed("auth required"));
